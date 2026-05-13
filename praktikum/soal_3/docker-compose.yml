@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  libraryit-server:
+    build: .
+    container_name: libraryit-server
+    ports:
+      - "1445:445"
+      - "139:139"
+    volumes:
+      - ./data:/libraryit
+      - ./logs:/var/log/samba-custom
+    restart: unless-stopped
+
+  libraryit-logger:
+    build: 
+      context: .
+      dockerfile: Dockerfile.logger # Opsional, jika logger butuh script khusus
+    container_name: libraryit-logger
+    volumes:
+      - ./logs:/var/log/samba-custom
+    # Command ini bergantung pada cara kamu mem-parsing log (lihat poin E)
+    command: sh -c "tail -f /var/log/samba-custom/libraryit.log"
+    depends_on:
+      - libraryit-server

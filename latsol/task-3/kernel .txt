@@ -1,0 +1,37 @@
+#!/bin/bash
+set -e
+
+apt update
+
+# Install basic build dependencies
+apt install -y build-essential bc bison flex libssl-dev libelf-dev
+
+# Detect if we are on an ARM64 machine (like an Apple Silicon Mac) or AMD/Intel
+if [ "$(uname -m)" = "aarch64" ]; then
+    echo "ARM64 architecture detected! Installing cross-compiler..."
+    apt install -y gcc-x86-64-linux-gnu
+    export CROSS_COMPILER="x86_64-linux-gnu-"
+else
+    echo "AMD/Intel architecture detected! Using native compiler..."
+    export CROSS_COMPILER=""
+fi
+
+# Download Linux Kernel
+echo "Downloading Linux Kernel v6.1.1..."
+wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.1.tar.xz || { echo "Download failed!"; exit 1; }
+tar -xf linux-6.1.1.tar.xz
+cd linux-6.1.1
+
+# Force x86_64 architecture and dynamically apply the cross-compiler if needed
+echo "Configuring kernel..."
+make ARCH=x86_64 CROSS_COMPILE=$CROSS_COMPILER x86_64_defconfig
+
+echo "Compiling kernel (this may take a while)..."
+make ARCH=x86_64 CROSS_COMPILE=$CROSS_COMPILER -j$(nproc) bzImage
+
+# Move bzImage to the main directory (../)
+echo "Moving bzImage..."
+mv arch/x86/boot/bzImage ../
+cd ..
+rm -rf linux-6.1.1 linux-6.1.1.tar.xz
+echo "Kernel compilation complete!"
